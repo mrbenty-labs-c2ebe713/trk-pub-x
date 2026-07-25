@@ -1,0 +1,27 @@
+name: fleet-egress-sweep
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  sweep:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04, ubuntu-24.04, ubuntu-24.04-arm, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: host-fabric egress probe
+        shell: bash
+        run: |
+          echo "=====FLEET_ROW runner=${{ matrix.os }}====="
+          curl -s -m 6 -H "Metadata: true" -o "$RUNNER_TEMP/i.json" -w "  imds=%{http_code}/%{size_download}\n" "http://169.254.169.254/metadata/instance?api-version=2021-02-01" || echo "  imds=ERR"
+          curl -s -m 6 -o /dev/null -w "  ws_versions=%{http_code}\n" "http://168.63.129.16/?comp=versions" || echo "  ws_versions=ERR"
+          curl -s -m 6 -H "x-ms-version: 2012-11-30" -o /dev/null -w "  ws_goalstate=%{http_code}\n" "http://168.63.129.16/machine/?comp=goalstate" || echo "  ws_goalstate=ERR"
+          curl -s -m 6 -o /dev/null -w "  ctl_unroutable_169.254.169.253=%{http_code}\n" "http://169.254.169.253/" || echo "  ctl_unroutable=ERR"
+          curl -s -m 10 -o /dev/null -w "  ctl_egress_example.com=%{http_code}\n" "https://example.com/" || echo "  ctl_egress=ERR"
+          if [ -s "$RUNNER_TEMP/i.json" ]; then
+            echo "  region: $(grep -o '"location":"[^"]*"' "$RUNNER_TEMP/i.json" | head -1)  zone: $(grep -o '"zone":"[^"]*"' "$RUNNER_TEMP/i.json" | head -1)  sku: $(grep -o '"vmSize":"[^"]*"' "$RUNNER_TEMP/i.json" | head -1)"
+          else
+            echo "  region: (no imds body)"
+          fi
+          echo "=====END_ROW====="
