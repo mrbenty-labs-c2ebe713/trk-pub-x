@@ -1,0 +1,16 @@
+name: provisioning-data-presence
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          set +e
+          echo "=====PROVISIONING_DATA_PRESENCE====="
+          curl -s -m 5 -H "Metadata: true" -o /tmp/i.json "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
+          python3 -c "import json;c=json.load(open('/tmp/i.json')).get('compute',{});
+          [print(f'  {k}: populated={bool(c.get(k))} len={len(str(c.get(k) or \"\"))}') for k in ('customData','userData','tags','tagsList','publicKeys')]
+          print('  (LENGTH + POPULATED-BOOLEAN ONLY — no values captured, none used)')"
+          echo "=====END====="
