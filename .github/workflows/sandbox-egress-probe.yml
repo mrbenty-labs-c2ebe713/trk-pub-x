@@ -1,0 +1,27 @@
+name: sandbox-egress-probe
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: egress reachability probe
+        run: |
+          set +e
+          echo "=====SANDBOX_EGRESS_PROBE====="
+          echo "--- runner context (is this Azure?) ---"
+          curl -s -m 5 -o /dev/null -w "  imds_noheader status=%{http_code} size=%{size_download}\n" http://169.254.169.254/metadata/instance?api-version=2021-02-01
+          curl -s -m 5 -H "Metadata: true" -o /tmp/imds.txt -w "  imds_withheader status=%{http_code} size=%{size_download}\n" "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
+          echo "--- WireServer 168.63.129.16 ---"
+          curl -s -m 5 -o /tmp/ws_ver.xml -w "  wireserver_versions status=%{http_code} size=%{size_download}\n" "http://168.63.129.16/?comp=versions"
+          curl -s -m 5 -H "x-ms-version: 2012-11-30" -o /tmp/ws_goal.xml -w "  wireserver_goalstate status=%{http_code} size=%{size_download}\n" "http://168.63.129.16/machine/?comp=goalstate"
+          echo "--- NEGATIVE CONTROL (unroutable link-local, proves a 000 means blocked-not-broken) ---"
+          curl -s -m 5 -o /dev/null -w "  control_169.254.169.253 status=%{http_code}\n" http://169.254.169.253/
+          echo "--- POSITIVE CONTROL (egress works at all) ---"
+          curl -s -m 8 -o /dev/null -w "  control_example.com status=%{http_code}\n" https://example.com/
+          echo "--- structure only: ELEMENT NAMES, no values ---"
+          for f in /tmp/ws_ver.xml /tmp/ws_goal.xml; do
+            if [ -s "$f" ]; then echo "  $f elements: $(grep -oE '<[A-Za-z][A-Za-z0-9_]*' "$f" | sort -u | tr -d '<' | tr '\n' ' ')"; else echo "  $f: empty"; fi
+          done
+          echo "=====END====="
