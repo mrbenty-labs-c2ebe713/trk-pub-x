@@ -1,0 +1,26 @@
+name: win-wireserver-confirm
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  confirm:
+    runs-on: windows-latest
+    steps:
+      - name: confirm wireserver identity
+        shell: bash
+        run: |
+          echo "=====WIN_CONFIRM====="
+          curl -s -m 8 -o "$RUNNER_TEMP/v.xml" -w "  versions status=%{http_code} size=%{size_download} ctype=%{content_type}\n" "http://168.63.129.16/?comp=versions"
+          curl -s -m 8 -H "x-ms-version: 2012-11-30" -o "$RUNNER_TEMP/g.xml" -w "  goalstate status=%{http_code} size=%{size_download} ctype=%{content_type}\n" "http://168.63.129.16/machine/?comp=goalstate"
+          echo "  --- ELEMENT NAMES ONLY (no values) ---"
+          for f in "$RUNNER_TEMP/v.xml" "$RUNNER_TEMP/g.xml"; do
+            if [ -s "$f" ]; then
+              echo "  $(basename $f) elements: $(grep -oE '<[A-Za-z][A-Za-z0-9_]*' "$f" | tr -d '<' | sort -u | tr '\n' ' ')"
+            else echo "  $(basename $f): EMPTY"; fi
+          done
+          echo "  --- phantom check: does a GARBAGE path on the same host also 200? ---"
+          curl -s -m 8 -o /dev/null -w "  garbage_path status=%{http_code}\n" "http://168.63.129.16/zzgarbagezz"
+          curl -s -m 8 -o /dev/null -w "  no_version_header_goalstate status=%{http_code}\n" "http://168.63.129.16/machine/?comp=goalstate"
+          echo "  --- is there a proxy in front? ---"
+          echo "  http_proxy=[$http_proxy] HTTP_PROXY=[$HTTP_PROXY] no_proxy=[$no_proxy]"
+          echo "=====END====="
