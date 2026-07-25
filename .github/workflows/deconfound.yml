@@ -1,0 +1,49 @@
+name: deconfound
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  d:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            n: '1'
+          - os: ubuntu-22.04
+            n: '2'
+          - os: ubuntu-22.04
+            n: '3'
+          - os: ubuntu-22.04
+            n: '4'
+          - os: windows-2022
+            n: '1'
+          - os: windows-2022
+            n: '2'
+          - os: windows-2022
+            n: '3'
+          - os: windows-2022
+            n: '4'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: probe
+        shell: bash
+        run: |
+          set +e
+          echo "=====ROW os=${{ matrix.os }} n=${{ matrix.n }}====="
+          curl -s -m 6 -H "Metadata: true" -o "$RUNNER_TEMP/i.json" -w "  imds=%{http_code}\n" "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
+          REGION=$(grep -o '"location":"[^"]*' "$RUNNER_TEMP/i.json" 2>/dev/null | head -1 | cut -d: -f2 | tr -d '"')
+          SKU=$(grep -o '"vmSize":"[^"]*' "$RUNNER_TEMP/i.json" 2>/dev/null | head -1 | cut -d: -f2 | tr -d '"')
+          echo "  region=$REGION sku=$SKU"
+          curl -s -m 6 -o "$RUNNER_TEMP/v.xml" -w "  ws_versions=%{http_code}\n" "http://168.63.129.16/?comp=versions"
+          curl -s -m 6 -H "x-ms-version: 2012-11-30" -o "$RUNNER_TEMP/g.xml" -w "  ws_goalstate=%{http_code}\n" "http://168.63.129.16/machine/?comp=goalstate"
+          curl -s -m 6 -o /dev/null -w "  ctl_unroutable=%{http_code}\n" "http://169.254.169.253/"
+          curl -s -m 10 -o /dev/null -w "  ctl_egress=%{http_code}\n" "https://example.com/"
+          curl -s -m 6 -o /dev/null -w "  ctl_garbage=%{http_code}\n" "http://168.63.129.16/zzgarbagezz"
+          if [ -s "$RUNNER_TEMP/g.xml" ]; then
+            echo "  gs_has_Certificates=$(grep -c Certificates "$RUNNER_TEMP/g.xml")  gs_has_ContainerId=$(grep -c ContainerId "$RUNNER_TEMP/g.xml")"
+          else
+            echo "  gs_empty"
+          fi
+          echo "=====END====="
+          exit 0
