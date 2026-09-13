@@ -13,26 +13,5 @@ jobs:
       - name: mint and decode OIDC token (claims only, raw token never printed)
         run: |
           set -euo pipefail
-          RAW=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=hc2-delimiter-probe")
-          printf '%s' "$RAW" | python3 -c '
-import sys, json, base64
-tok = json.load(sys.stdin)["value"]
-pl = tok.split(".")[1]; pl += "=" * (-len(pl) % 4)
-claims = json.loads(base64.urlsafe_b64decode(pl))
-s = claims.get("sub") or ""
-ANCHOR = "repo:mrbenty-labs-c2ebe713@284490589/trk-pub-x@1310984284"
-print("=== SUB CLAIM (verbatim repr) ===")
-print(repr(s))
-print("=== DELIMITER VERDICT  (value set was  x-y@z:w) ===")
-print("  colon escaped (%3A present) :", "%3A" in s, "   <-- POSITIVE CONTROL, must be True")
-print("  at    escaped (%40 present) :", "%40" in s)
-print("  dash  escaped (%2D present) :", "%2D" in s)
-print("  literal x-y@z:w survives    :", "x-y@z:w" in s)
-print("  literal @ anywhere after anchor:", "@" in s[len(ANCHOR):] if s.startswith(ANCHOR) else "@" in s)
-print("=== IDENTITY ANCHOR ===")
-print("  sub startswith anchor :", s.startswith(ANCHOR))
-print("  anchor appears at all :", ANCHOR in s)
-print("=== ALL CLAIMS (payload only; no signature, no token) ===")
-print(json.dumps(claims, indent=1, sort_keys=True))
-'
+          printf '%s' 'aW1wb3J0IHN5cywganNvbiwgYmFzZTY0CnRvayA9IGpzb24ubG9hZChzeXMuc3RkaW4pWyJ2YWx1ZSJdCnBsID0gdG9rLnNwbGl0KCIuIilbMV07IHBsICs9ICI9IiAqICgtbGVuKHBsKSAlIDQpCmNsYWltcyA9IGpzb24ubG9hZHMoYmFzZTY0LnVybHNhZmVfYjY0ZGVjb2RlKHBsKSkKcyA9IGNsYWltcy5nZXQoInN1YiIpIG9yICIiCkFOQ0hPUiA9ICJyZXBvOm1yYmVudHktbGFicy1jMmViZTcxM0AyODQ0OTA1ODkvdHJrLXB1Yi14QDEzMTA5ODQyODQiCnByaW50KCI9PT0gU1VCIENMQUlNICh2ZXJiYXRpbSByZXByKSA9PT0iKQpwcmludChyZXByKHMpKQpwcmludCgiPT09IERFTElNSVRFUiBWRVJESUNUICAocHJvcGVydHkgdmFsdWUgc2V0IHRvICB4LXlAejp3ICkgPT09IikKcHJpbnQoIiAgY29sb24gZXNjYXBlZCAoJTNBIHByZXNlbnQpIDoiLCAiJTNBIiBpbiBzLCAiICA8LS0gUE9TSVRJVkUgQ09OVFJPTCwgbXVzdCBiZSBUcnVlIikKcHJpbnQoIiAgYXQgICAgZXNjYXBlZCAoJTQwIHByZXNlbnQpIDoiLCAiJTQwIiBpbiBzKQpwcmludCgiICBkYXNoICBlc2NhcGVkICglMkQgcHJlc2VudCkgOiIsICIlMkQiIGluIHMpCnByaW50KCIgIGxpdGVyYWwgJ3gteUB6OncnIHN1cnZpdmVzICA6IiwgIngteUB6OnciIGluIHMpCnRhaWwgPSBzW2xlbihBTkNIT1IpOl0gaWYgcy5zdGFydHN3aXRoKEFOQ0hPUikgZWxzZSBzCnByaW50KCIgIGxpdGVyYWwgJ0AnIGFmdGVyIGFuY2hvciAgICA6IiwgIkAiIGluIHRhaWwpCnByaW50KCIgIHRhaWwgYWZ0ZXIgYW5jaG9yICAgICAgICAgICA6IiwgcmVwcih0YWlsKSkKcHJpbnQoIj09PSBJREVOVElUWSBBTkNIT1IgPT09IikKcHJpbnQoIiAgc3ViIHN0YXJ0c3dpdGggYW5jaG9yIDoiLCBzLnN0YXJ0c3dpdGgoQU5DSE9SKSkKcHJpbnQoIiAgYW5jaG9yIGFwcGVhcnMgYXQgYWxsIDoiLCBBTkNIT1IgaW4gcykKcHJpbnQoIj09PSBBTEwgQ0xBSU1TIChwYXlsb2FkIG9ubHk7IG5vIHNpZ25hdHVyZSwgbm8gcmF3IHRva2VuKSA9PT0iKQpwcmludChqc29uLmR1bXBzKGNsYWltcywgaW5kZW50PTEsIHNvcnRfa2V5cz1UcnVlKSkK' | base64 -d > /tmp/probe.py
+          curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=hc2-delimiter-probe" | python3 /tmp/probe.py
